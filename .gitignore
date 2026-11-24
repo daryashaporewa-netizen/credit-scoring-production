@@ -25,3 +25,6 @@ build/
 
 /experiment_results.csv
 /roc_curve.png
+
+# Neural network artifacts
+/models/neural_network/
