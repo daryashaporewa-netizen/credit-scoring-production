@@ -27,4 +27,6 @@ build/
 /roc_curve.png
 
 # Neural network artifacts
-/models/neural_network/
+/models/neural_network/*
+!/models/neural_network/*.dvc
+!/models/neural_network/.gitignore
