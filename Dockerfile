@@ -1,14 +1,30 @@
-FROM python:3.12-slim
+# Этап 1. Установка зависимостей
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+
+# Этап 2. Запуск API
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY src ./src
 
-COPY models/credit_default_model.pkl ./models/credit_default_model.pkl
+COPY models/neural_network/model.onnx ./models/neural_network/model.onnx
+COPY models/neural_network/preprocessor.joblib ./models/neural_network/preprocessor.joblib
+
+RUN useradd --create-home appuser
+USER appuser
 
 EXPOSE 8000
 
