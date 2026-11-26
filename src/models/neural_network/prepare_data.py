@@ -36,7 +36,11 @@ numerical = [col for col in X.columns if col not in CATEGORICAL]
 preprocessor = ColumnTransformer(
     transformers=[
         ("num", StandardScaler(), numerical),
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL),
+        (
+            "cat",
+            OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+            CATEGORICAL,
+        ),
     ]
 )
 

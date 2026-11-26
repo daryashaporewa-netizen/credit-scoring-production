@@ -16,3 +16,7 @@ uvicorn==0.54.0
 
 black==26.10.1
 flake8==7.4.1
+
+torch==2.15.0
+onnx==1.23.2
+onnxruntime==1.32.0

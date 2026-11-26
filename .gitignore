@@ -30,3 +30,4 @@ build/
 /models/neural_network/*
 !/models/neural_network/*.dvc
 !/models/neural_network/.gitignore
+!/models/neural_network/baseline_metrics.csv

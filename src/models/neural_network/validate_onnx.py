@@ -8,7 +8,6 @@ import torch
 
 from src.models.neural_network.model import CreditScoringNN
 
-
 # Пути к данным и моделям
 ROOT = Path(__file__).resolve().parents[3]
 MODEL_DIR = ROOT / "models" / "neural_network"

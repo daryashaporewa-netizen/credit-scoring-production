@@ -112,6 +112,15 @@ def validate_data(df):
         )
     )
 
+    # Кредитный лимит должен быть положительным
+    suite.add_expectation(
+        gx.expectations.ExpectColumnValuesToBeBetween(
+            column="LIMIT_BAL",
+            min_value=0,
+            strict_min=True,
+        )
+    )
+
     # Проверяем допустимые значения пола
     suite.add_expectation(
         gx.expectations.ExpectColumnValuesToBeInSet(

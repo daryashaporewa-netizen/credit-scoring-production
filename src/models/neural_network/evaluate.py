@@ -11,7 +11,6 @@ from sklearn.metrics import (
 
 from src.models.neural_network.model import CreditScoringNN
 
-
 # Пути к данным и модели
 ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = ROOT / "data" / "processed"
@@ -55,13 +54,15 @@ print(classification_report(y_test, predictions, digits=4))
 
 
 # Сохраняем метрики для последующего сравнения
-results = pd.DataFrame([
-    {
-        "model": "PyTorch MLP",
-        "roc_auc": roc_auc_score(y_test, probabilities),
-        "average_precision": average_precision_score(y_test, probabilities),
-    }
-])
+results = pd.DataFrame(
+    [
+        {
+            "model": "PyTorch MLP",
+            "roc_auc": roc_auc_score(y_test, probabilities),
+            "average_precision": average_precision_score(y_test, probabilities),
+        }
+    ]
+)
 
 results.to_csv(MODEL_DIR / "baseline_metrics.csv", index=False)
 

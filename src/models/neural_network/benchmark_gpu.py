@@ -7,7 +7,6 @@ import torch
 
 from src.models.neural_network.model import CreditScoringNN
 
-
 ROOT = Path(__file__).resolve().parents[3]
 MODEL_DIR = ROOT / "models" / "neural_network"
 
@@ -63,9 +62,7 @@ for device_name in ["cpu", "mps"]:
     for batch_size in BATCH_SIZES:
         # Одинаковые данные для CPU и GPU
         rng = np.random.default_rng(42)
-        X_numpy = rng.normal(
-            size=(batch_size, INPUT_DIM)
-        ).astype(np.float32)
+        X_numpy = rng.normal(size=(batch_size, INPUT_DIM)).astype(np.float32)
 
         X = torch.from_numpy(X_numpy).to(device)
 
@@ -75,9 +72,7 @@ for device_name in ["cpu", "mps"]:
         p95_ms = np.percentile(times, 95) * 1000
         throughput = batch_size / times.mean()
 
-        results.append(
-            (device_name, batch_size, mean_ms, p95_ms, throughput)
-        )
+        results.append((device_name, batch_size, mean_ms, p95_ms, throughput))
 
 # Формируем таблицу результатов
 df = pd.DataFrame(

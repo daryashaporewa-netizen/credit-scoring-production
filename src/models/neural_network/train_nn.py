@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src.models.neural_network.model import CreditScoringNN
 
-
 # Настройки
 ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = ROOT / "data" / "processed"

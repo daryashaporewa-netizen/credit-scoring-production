@@ -1,0 +1,2 @@
+model,roc_auc,average_precision
+PyTorch MLP,0.7766408415578534,0.554573364890453

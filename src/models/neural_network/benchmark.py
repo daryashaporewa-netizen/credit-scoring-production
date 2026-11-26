@@ -3,10 +3,10 @@ from time import perf_counter
 
 import numpy as np
 import onnxruntime as ort
+import pandas as pd
 import torch
 
 from src.models.neural_network.model import CreditScoringNN
-
 
 # Настройки эксперимента
 ROOT = Path(__file__).resolve().parents[3]
@@ -63,9 +63,11 @@ results = []
 
 for batch_size in BATCH_SIZES:
     # Одинаковые входные данные для обеих моделей
-    X = np.random.default_rng(42).normal(
-        size=(batch_size, INPUT_DIM)
-    ).astype(np.float32)
+    X = (
+        np.random.default_rng(42)
+        .normal(size=(batch_size, INPUT_DIM))
+        .astype(np.float32)
+    )
 
     X_torch = torch.from_numpy(X)
 
@@ -86,14 +88,11 @@ for batch_size in BATCH_SIZES:
         p95_ms = np.percentile(times, 95) * 1000
         throughput = batch_size / times.mean()
 
-        results.append(
-            (name, batch_size, latency_ms, p95_ms, throughput)
-        )
+        results.append((name, batch_size, latency_ms, p95_ms, throughput))
 
 # Выводим результаты
 print(
-    f"{'Model':<15} {'Batch':>6} "
-    f"{'Mean ms':>12} {'P95 ms':>12} {'Samples/s':>12}"
+    f"{'Model':<15} {'Batch':>6} " f"{'Mean ms':>12} {'P95 ms':>12} {'Samples/s':>12}"
 )
 
 for name, batch, latency, p95, throughput in results:
@@ -102,9 +101,7 @@ for name, batch, latency, p95, throughput in results:
         f"{latency:>12.4f} {p95:>12.4f} "
         f"{throughput:>12.1f}"
     )
-    
-    
-import pandas as pd
+
 
 # Сохраняем результаты benchmark
 benchmark_df = pd.DataFrame(
