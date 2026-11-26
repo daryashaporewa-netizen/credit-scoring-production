@@ -91,7 +91,7 @@ def test_invalid_age():
 
 
 def test_invalid_credit_limit():
-    df = pd.read_csv("data/raw/UCI_Credit_Card.csv")
+    df = make_valid_data()
     df.loc[0, "LIMIT_BAL"] = 0
 
     assert not validate_data(df)
