@@ -1,19 +1,7 @@
-from pathlib import Path
-
-import joblib
-import pandas as pd
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from src.features.build_features import build_features
-
-# Пути проекта и модели
-project_root = Path(__file__).resolve().parents[2]
-model_path = project_root / "models" / "credit_default_model.pkl"
-
-# Загружаем обученную модель
-model = joblib.load(model_path)
-
+from src.api.inference import predict_default
 
 # Создаём FastAPI-приложение
 app = FastAPI(
@@ -73,22 +61,9 @@ def root():
 def predict(data: ClientData):
     """Возвращает класс и вероятность дефолта клиента."""
 
-    # Превращаем входной JSON в DataFrame
-    input_df = pd.DataFrame([data.model_dump()])
-
-    # Создаём те же признаки, которые использовались при обучении
-    input_df = build_features(input_df)
-
-    # Сохраняем тот же набор и порядок признаков,
-    # который использовался при обучении модели
-    if hasattr(model, "feature_names_in_"):
-        input_df = input_df[list(model.feature_names_in_)]
-
-    # Получаем прогноз
-    prediction = model.predict(input_df)[0]
-    probability = model.predict_proba(input_df)[0, 1]
+    prediction, probability = predict_default(data.model_dump())
 
     return PredictionResponse(
-        default_prediction=int(prediction),
-        default_probability=float(probability),
+        default_prediction=prediction,
+        default_probability=probability,
     )
