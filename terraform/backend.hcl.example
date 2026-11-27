@@ -1,0 +1,3 @@
+# Скопируйте файл в backend.hcl и замените PROJECT_ID перед terraform init.
+bucket = "PROJECT_ID-credit-scoring-terraform-state"
+

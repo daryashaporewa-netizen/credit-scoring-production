@@ -52,6 +52,7 @@ module "kubernetes" {
   subnetwork_id       = module.network.subnetwork_id
   pods_range_name     = module.network.pods_range_name
   services_range_name = module.network.services_range_name
+  node_network_tag    = module.network.gke_node_tag
   enable_gpu          = var.enable_gpu
 }
 

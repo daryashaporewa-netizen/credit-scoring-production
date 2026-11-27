@@ -42,8 +42,8 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/daryashaporewa-netizen/credit-scoring-api:5d33cfd
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/daryashaporewa-netizen/credit-scoring-production-api:latest
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 8000

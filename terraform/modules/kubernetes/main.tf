@@ -30,6 +30,11 @@ variable "services_range_name" {
   type        = string
 }
 
+variable "node_network_tag" {
+  description = "Сетевой тег узлов GKE"
+  type        = string
+}
+
 variable "enable_gpu" {
   description = "Создавать ли GPU-пул Kubernetes"
   type        = bool
@@ -75,6 +80,17 @@ resource "google_container_cluster" "main" {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
 
+  network_policy {
+    enabled  = true
+    provider = "CALICO"
+  }
+
+  addons_config {
+    network_policy_config {
+      disabled = false
+    }
+  }
+
   deletion_protection = false
 }
 
@@ -94,6 +110,7 @@ resource "google_container_node_pool" "cpu" {
     disk_size_gb    = 30
     disk_type       = "pd-standard"
     service_account = google_service_account.gke_nodes.email
+    tags            = [var.node_network_tag]
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
@@ -134,6 +151,7 @@ resource "google_container_node_pool" "gpu" {
     disk_size_gb    = 50
     disk_type       = "pd-balanced"
     service_account = google_service_account.gke_nodes.email
+    tags            = [var.node_network_tag]
 
     guest_accelerator {
       type  = "nvidia-l4"

@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: credit-scoring-frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/daryashaporewa-netizen/credit-scoring-production-frontend:latest
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 80

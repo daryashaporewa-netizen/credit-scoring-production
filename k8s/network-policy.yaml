@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: credit-scoring-api-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: credit-scoring-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8000
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: credit-scoring-frontend-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app: credit-scoring-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
