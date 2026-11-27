@@ -21,3 +21,4 @@ torch==2.15.0
 onnx==1.23.2
 onnxruntime==1.32.0
 httpx2==2.16.2
+dvc-gs==3.0.2
