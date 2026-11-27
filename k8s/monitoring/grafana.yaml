@@ -1,0 +1,173 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning
+  namespace: monitoring
+data:
+  datasources.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+
+  dashboards.yml: |
+    apiVersion: 1
+    providers:
+      - name: credit-scoring
+        folder: Credit Scoring
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards
+
+  dashboard.json: |
+    {
+      "title": "Credit Scoring Observability",
+      "uid": "credit-scoring-observability",
+      "schemaVersion": 41,
+      "version": 1,
+      "refresh": "30s",
+      "time": {"from": "now-1h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "API request rate",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "sum(rate(credit_scoring_http_requests_total[5m]))"}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "API p95 latency",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(credit_scoring_http_request_duration_seconds_bucket[5m])))"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "HTTP responses by status",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "sum by (status) (rate(credit_scoring_http_requests_total[5m]))", "legendFormat": "{{status}}"}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+        },
+        {
+          "id": 4,
+          "title": "Predictions by class",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "sum by (prediction) (rate(credit_scoring_predictions_total[5m]))", "legendFormat": "class {{prediction}}"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+        },
+        {
+          "id": 5,
+          "title": "Container restarts",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "sum by (pod) (kube_pod_container_status_restarts_total{namespace=\"default\", pod=~\"credit-scoring-.*\"})", "legendFormat": "{{pod}}"}],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+        },
+        {
+          "id": 6,
+          "title": "Node CPU usage",
+          "type": "timeseries",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [{"refId": "A", "expr": "100 - 100 * avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))"}],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+        },
+        {
+          "id": 7,
+          "title": "Application logs",
+          "type": "logs",
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [{"refId": "A", "expr": "{job=\"kubernetes-pods\"}"}],
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24}
+        }
+      ]
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:13.3.2
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: Viewer
+            - name: GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/datasources/datasources.yml
+              subPath: datasources.yml
+            - name: provisioning
+              mountPath: /etc/grafana/provisioning/dashboards/dashboards.yml
+              subPath: dashboards.yml
+            - name: provisioning
+              mountPath: /var/lib/grafana/dashboards/dashboard.json
+              subPath: dashboard.json
+      volumes:
+        - name: provisioning
+          configMap:
+            name: grafana-provisioning
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+

@@ -46,3 +46,11 @@ def test_predict():
     assert response.status_code == 200
     assert response.json()["default_prediction"] == 1
     assert response.json()["default_probability"] == 0.5789
+
+
+def test_metrics():
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "credit_scoring_http_requests_total" in response.text
+    assert "credit_scoring_predictions_total" in response.text

@@ -1,0 +1,221 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: monitoring
+data:
+  loki.yml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+
+    common:
+      instance_addr: 127.0.0.1
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    schema_config:
+      configs:
+        - from: 2024-04-01
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    ruler:
+      storage:
+        type: local
+        local:
+          directory: /etc/loki/rules
+      rule_path: /tmp/loki-rules
+      alertmanager_url: http://alertmanager.monitoring.svc.cluster.local:9093
+      enable_alertmanager_v2: true
+
+  log-alerts.yml: |
+    groups:
+      - name: application-logs
+        rules:
+          - alert: CreditScoringErrorsInLogs
+            expr: |
+              sum(
+                count_over_time(
+                  {job="kubernetes-pods"}
+                    |~ "(?i)(error|exception|traceback)" [5m]
+                )
+              ) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: Repeated errors detected in Kubernetes logs
+              runbook: docs/runbook.md#creditscoringerrorsinlogs
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:3.7.10
+          args:
+            - -config.file=/etc/loki/loki.yml
+          ports:
+            - name: http
+              containerPort: 3100
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/loki.yml
+              subPath: loki.yml
+            - name: config
+              mountPath: /etc/loki/rules/fake/log-alerts.yml
+              subPath: log-alerts.yml
+            - name: data
+              mountPath: /loki
+      volumes:
+        - name: config
+          configMap:
+            name: loki-config
+        - name: data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  selector:
+    app: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: http
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: monitoring
+data:
+  config.alloy: |
+    local.file_match "kubernetes_pods" {
+      path_targets = [{
+        __path__ = "/var/log/pods/*/*/*.log",
+        job      = "kubernetes-pods",
+      }]
+    }
+
+    loki.source.file "kubernetes_pods" {
+      targets    = local.file_match.kubernetes_pods.targets
+      forward_to = [loki.process.kubernetes_pods.receiver]
+    }
+
+    loki.process "kubernetes_pods" {
+      stage.cri {}
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.22.0
+          args:
+            - run
+            - --storage.path=/var/lib/alloy/data
+            - /etc/alloy/config.alloy
+          ports:
+            - name: http
+              containerPort: 12345
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 473
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+            - name: data
+              mountPath: /var/lib/alloy/data
+            - name: logs
+              mountPath: /var/log/pods
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+        - name: data
+          emptyDir: {}
+        - name: logs
+          hostPath:
+            path: /var/log/pods
+
