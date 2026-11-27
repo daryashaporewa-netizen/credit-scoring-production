@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -6,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   test:
@@ -73,9 +75,9 @@ jobs:
 
       - name: Validate Kubernetes manifests
         run: kubeconform -strict -summary -kubernetes-version 1.34.0 k8s/
-  
+
   docker:
-    name: Docker build
+    name: Docker build and publish
     runs-on: ubuntu-latest
     needs: [test, terraform, kubernetes]
 
@@ -102,3 +104,44 @@ jobs:
 
       - name: Build frontend image
         run: docker build -t credit-scoring-frontend:latest ./frontend
+
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: credit-scoring-api:latest
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: credit-scoring-frontend:latest
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Docker images
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          REGISTRY="ghcr.io/${GITHUB_REPOSITORY,,}"
+
+          docker tag credit-scoring-api:latest "$REGISTRY-api:$GITHUB_SHA"
+          docker tag credit-scoring-frontend:latest "$REGISTRY-frontend:$GITHUB_SHA"
+
+          docker push "$REGISTRY-api:$GITHUB_SHA"
+          docker push "$REGISTRY-frontend:$GITHUB_SHA"
+
+          docker tag credit-scoring-api:latest "$REGISTRY-api:latest"
+          docker tag credit-scoring-frontend:latest "$REGISTRY-frontend:latest"
+
+          docker push "$REGISTRY-api:latest"
+          docker push "$REGISTRY-frontend:latest"
